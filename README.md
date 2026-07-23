@@ -1,6 +1,12 @@
-# Tarefas — Task Manager
+# Task Manager
 
-Uma aplicação web simples e moderna de gerenciamento de tarefas, construída com React e Vite. Desenvolvida para praticar o backend, testes unitários e testes automatizados.
+Uma aplicação web de gerenciamento de tarefas, construída com React e Vite.
+
+## Status
+
+🚧 **Em desenvolvimento** — interface e lógica de estado implementadas. 
+Próximos passos: persistência de dados, testes automatizados e integração com backend.
+
 ---
 
 ## Funcionalidades
@@ -25,7 +31,7 @@ Uma aplicação web simples e moderna de gerenciamento de tarefas, construída c
 | Vite | 6.3.5 | Dev server e build |
 | @vitejs/plugin-react | 4.3.4 | Fast Refresh e transpilação JSX |
 
-Sem bibliotecas de UI externas, sem roteador, sem gerenciador de estado — tudo construído com React hooks nativos.
+Sem bibliotecas de UI externas, sem roteador, sem gerenciador de estado externo — tudo construído com React hooks nativos.
 
 ---
 
