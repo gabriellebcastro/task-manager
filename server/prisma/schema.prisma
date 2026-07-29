@@ -8,13 +8,14 @@ datasource db {
 }
 
 model Task {
-  id        String   @id @default(cuid())
-  title     String
-  desc      String?
-  date      String?
-  time      String?
-  priority  String   @default("medium")
-  status    String   @default("pending")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  title       String
+  desc        String?
+  date        String?
+  time        String?
+  priority    String   @default("medium")
+  status      String   @default("pending")
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

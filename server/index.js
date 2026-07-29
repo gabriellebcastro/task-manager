@@ -24,7 +24,7 @@ app.get('/api/tasks', async (req, res) => {
 
 // POST /api/tasks
 app.post('/api/tasks', async (req, res) => {
-  const { title, desc, date, time, priority, status } = req.body;
+  const { title, desc, date, time, priority, status, completedAt } = req.body;
   if (!title || !title.trim()) return res.status(400).json({ error: 'title is required' });
   try {
     const task = await prisma.task.create({
@@ -35,6 +35,7 @@ app.post('/api/tasks', async (req, res) => {
         time: time || null,
         priority: ['high','medium','low'].includes(priority) ? priority : 'medium',
         status: ['pending','in-progress','done'].includes(status) ? status : 'pending',
+        completedAt: completedAt ? new Date(completedAt) : null,
       },
     });
     res.status(201).json(task);
@@ -46,7 +47,7 @@ app.post('/api/tasks', async (req, res) => {
 // PUT /api/tasks/:id
 app.put('/api/tasks/:id', async (req, res) => {
   const { id } = req.params;
-  const { title, desc, date, time, priority, status } = req.body;
+  const { title, desc, date, time, priority, status, completedAt } = req.body;
   const data = {};
   if (title !== undefined) data.title = title.trim().slice(0, 120);
   if (desc !== undefined) data.desc = desc?.trim() || null;
@@ -54,6 +55,7 @@ app.put('/api/tasks/:id', async (req, res) => {
   if (time !== undefined) data.time = time || null;
   if (priority !== undefined && ['high','medium','low'].includes(priority)) data.priority = priority;
   if (status !== undefined && ['pending','in-progress','done'].includes(status)) data.status = status;
+  if (completedAt !== undefined) data.completedAt = completedAt ? new Date(completedAt) : null;
   try {
     const task = await prisma.task.update({ where: { id }, data });
     res.json(task);
