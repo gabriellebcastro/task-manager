@@ -1,32 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakColor } from './tweaks-panel.jsx'
+import { fetchTasks, createTask, updateTask, deleteTask as apiDeleteTask } from './api.js'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
-const STORAGE_KEY = 'tm_tasks_v1';
 const FILTER_KEY = 'tm_filters_v1';
-
-const uid = () => Math.random().toString(36).slice(2, 10);
-
-const loadTasks = () => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const data = JSON.parse(raw);
-    // migrate: ensure every task has priority & status
-    return data.map((t) => ({
-      priority: t.priority || 'medium',
-      status: t.status || (t.done ? 'done' : 'pending'),
-      ...t,
-      // make sure status reflects done for legacy items
-      ...(t.done ? { status: 'done' } : {}),
-    }));
-  } catch (e) {
-    return [];
-  }
-};
-const saveTasks = (tasks) => {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); } catch (e) {}
-};
 const loadFilters = () => {
   try {
     const raw = localStorage.getItem(FILTER_KEY);
@@ -485,13 +462,20 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
 }/*EDITMODE-END*/;
 
 function App() {
-  const [tasks, setTasks] = useState(() => loadTasks());
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [view, setView] = useState('active');
   const [filters, setFilters] = useState(() => loadFilters() || DEFAULT_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
 
-  useEffect(() => { saveTasks(tasks); }, [tasks]);
+  useEffect(() => {
+    fetchTasks()
+      .then((data) => setTasks(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
   useEffect(() => { saveFilters(filters); }, [filters]);
 
   useEffect(() => {
@@ -560,29 +544,42 @@ function App() {
   }, [tasks, filters]);
 
   // task ops
-  const addTask = (task) => setTasks((p) => [task, ...p]);
-  const completeTask = (id) => setTasks((p) => p.map((x) => x.id === id
-    ? { ...x, status: 'done', done: true, completedAt: Date.now() }
-    : x));
-  const undoTask = (id) => setTasks((p) => p.map((x) => x.id === id
-    ? { ...x, status: 'pending', done: false, completedAt: undefined }
-    : x));
-  const deleteTask = (id) => setTasks((p) => p.filter((x) => x.id !== id));
-  const editTask = (id, data) => setTasks((p) => p.map((x) => {
-    if (x.id !== id) return x;
-    const next = { ...x, ...data };
-    if (data.status === 'done' && x.status !== 'done') next.completedAt = Date.now();
-    if (data.status !== 'done') { next.completedAt = undefined; next.done = false; }
-    else next.done = true;
-    return next;
-  }));
-  const changeStatus = (id, status) => setTasks((p) => p.map((x) => x.id === id
-    ? { ...x,
-        status,
-        done: status === 'done',
-        completedAt: status === 'done' ? Date.now() : undefined,
-      }
-    : x));
+  const addTask = async (task) => {
+    const { id, createdAt, ...data } = task;
+    const created = await createTask(data);
+    setTasks((p) => [created, ...p]);
+  };
+
+  const completeTask = async (id) => {
+    const updated = await updateTask(id, { status: 'done', completedAt: Date.now() });
+    setTasks((p) => p.map((x) => x.id === id ? updated : x));
+  };
+
+  const undoTask = async (id) => {
+    const updated = await updateTask(id, { status: 'pending', completedAt: null });
+    setTasks((p) => p.map((x) => x.id === id ? updated : x));
+  };
+
+  const deleteTaskFn = async (id) => {
+    await apiDeleteTask(id);
+    setTasks((p) => p.filter((x) => x.id !== id));
+  };
+
+  const editTask = async (id, data) => {
+    const payload = { ...data };
+    if (data.status === 'done') payload.completedAt = Date.now();
+    else payload.completedAt = null;
+    const updated = await updateTask(id, payload);
+    setTasks((p) => p.map((x) => x.id === id ? updated : x));
+  };
+
+  const changeStatus = async (id, status) => {
+    const payload = { status };
+    if (status === 'done') payload.completedAt = Date.now();
+    else payload.completedAt = null;
+    const updated = await updateTask(id, payload);
+    setTasks((p) => p.map((x) => x.id === id ? updated : x));
+  };
 
   const isFiltered =
     filters.status !== DEFAULT_FILTERS.status ||
@@ -609,6 +606,8 @@ function App() {
             </button>
           ) : null}
         </header>
+
+        {loading && <div style={{textAlign:'center', padding:'2rem', opacity:0.5}}>Carregando...</div>}
 
         <Counters stats={stats} view={view} setView={setView} />
 
@@ -646,7 +645,7 @@ function App() {
                 archived={false}
                 onComplete={completeTask}
                 onUndo={undoTask}
-                onDelete={deleteTask}
+                onDelete={deleteTaskFn}
                 onEdit={editTask}
                 onStatusChange={changeStatus}
               />
@@ -682,7 +681,7 @@ function App() {
                 archived={true}
                 onComplete={completeTask}
                 onUndo={undoTask}
-                onDelete={deleteTask}
+                onDelete={deleteTaskFn}
                 onEdit={editTask}
                 onStatusChange={changeStatus}
               />
@@ -691,7 +690,7 @@ function App() {
         </main>
 
         <footer className="footer">
-          <span>Salvo automaticamente no seu navegador</span>
+          <span>Sincronizado com o servidor</span>
         </footer>
       </div>
 
